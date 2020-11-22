@@ -1,0 +1,145 @@
+image: docker:stable
+
+variables:
+  REPO: "exchange/engine"
+  APP_PORT: "50051"
+  REPLICA_NUM: "1"
+  DEV_CLUSTER_NAME: "dev-kubernetes"
+  DELAY_START: "60s"
+  SERVICE_NAME: "exchange.engine"
+  REQUEST_CPU: "64m"
+  LIMIT_CPU: "128m"
+  REQUEST_MEMORY: "128Mi"
+  LIMIT_MEMORY: "512Mi"
+  TARGET: "aws"
+
+
+before_script:
+  - apk add -q --no-cache curl jq python py-pip bash
+  - pip install -q awscli
+
+services:
+  - docker:dind
+
+stages: 
+  - build
+  - deploy
+  - deploy_prod
+
+
+build:
+  stage: build
+  tags:
+    - docker
+  only:
+    - master
+  script:
+    - aws s3 cp s3://aws-eks-dev/devops/build/aws-build.sh ./
+    - chmod +x ./aws-build.sh && ./aws-build.sh
+
+.template: &template
+  tags:
+    - docker
+  only:
+    - master
+  environment:
+    name: dev
+  stage: deploy
+  script:
+    - curl -Lo /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x /usr/local/bin/kubectl
+    - curl -o /usr/local/bin/aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.11.5/2018-12-06/bin/linux/amd64/aws-iam-authenticator
+    - chmod +x /usr/local/bin/aws-iam-authenticator
+    - aws s3 cp s3://aws-eks-dev/devops/deploy/$TARGET/recreate.sh ./
+    - aws s3 cp --recursive s3://aws-eks-dev/devops/deploy/aws/$SERVICE_NAME/ ./
+    - chmod +x ./recreate.sh && ./recreate.sh && ls
+
+deploy_dev_1:
+  <<: *template
+  variables:
+    APP: "engine-btcaud"
+    ENGINE_ARGS: "btcaud"
+
+deploy_dev_2:
+  <<: *template
+  variables:
+    APP: "engine-ethaud"
+    ENGINE_ARGS: "ethaud"
+
+
+deploy_dev_3:
+  <<: *template
+  variables:
+    APP: "engine-btceth"
+    ENGINE_ARGS: "btceth"
+
+
+
+#---
+deploy_prod_1:
+  <<: *template
+  environment:
+    name: prod
+  stage: deploy_prod
+  when: manual
+  variables:
+    APP: "engine-btcaud"
+    ENGINE_ARGS: "btcaud"
+    TARGET: "ali"
+
+deploy_prod_2:
+  <<: *template
+  environment:
+    name: prod
+  stage: deploy_prod
+  when: manual
+  variables:
+    APP: "engine-ethaud"
+    ENGINE_ARGS: "ethaud"
+    TARGET: "ali"
+
+
+deploy_prod_3:
+  <<: *template
+  environment:
+    name: prod
+  stage: deploy_prod
+  when: manual
+  variables:
+    APP: "engine-ethbtc"
+    ENGINE_ARGS: "ethbtc"
+    TARGET: "ali"
+    
+deploy_prod_4:
+  <<: *template
+  environment:
+    name: prod
+  stage: deploy_prod
+  when: manual
+  variables:
+    APP: "engine-orabtc"
+    ENGINE_ARGS: "orabtc"
+    TARGET: "ali"
+    
+deploy_prod_5:
+  <<: *template
+  environment:
+    name: prod
+  stage: deploy_prod
+  when: manual
+  variables:
+    APP: "engine-oraeth"
+    ENGINE_ARGS: "oraeth"
+    TARGET: "ali"
+    
+    
+deploy_prod_6:
+  <<: *template
+  environment:
+    name: prod
+  stage: deploy_prod
+  when: manual
+  variables:
+    APP: "engine-others"
+    ENGINE_ARGS: "ltcaud bchaud btgaud dogeaud bsvaud btcpaud cnxaud dashaud etcaud monaaud ltcbtc bchbtc btgbtc dogebtc bsvbtc btcpbtc cnxbtc dashbtc etcbtc monabtc ltceth bcheth btgeth dogeeth bsveth btcpeth cnxeth dasheth etceth monaeth usdtaud usdtbtc usdteth adxaud adxbtc adxeth aeaud aebtc aeeth agiaud agibtc agieth aionaud aionbtc aioneth antaud antbtc anteth bataud batbtc bateth bntaud bntbtc bnteth brdaud brdbtc brdeth c20aud c20btc c20eth cmtaud cmtbtc cmteth cndaud cndbtc cndeth crptaud crptbtc crpteth cvcaud cvcbtc cvceth daiaud daibtc daieth dentaud dentbtc denteth dgdaud dgdbtc dgdeth drgnaud drgnbtc drgneth edgaud edgbtc edgeth edoaud edobtc edoeth engaud engbtc engeth enjaud enjbtc enjeth funaud funbtc funeth gnoaud gnobtc gnoeth gntaud gntbtc gnteth gtoaud gtobtc gtoeth gvtaud gvtbtc gvteth icnaud icnbtc icneth kncaud kncbtc knceth linkaud linkbtc linketh loomaud loombtc loometh lrcaud lrcbtc lrceth manaaud manabtc manaeth mcoaud mcobtc mcoeth mgoaud mgobtc mgoeth mkraud mkrbtc mkreth omgaud omgbtc omgeth ostaud ostbtc osteth payaud paybtc payeth poeaud poebtc poeeth powraud powrbtc powreth pptaud pptbtc ppteth qashaud qashbtc qasheth repaud repbtc repeth reqaud reqbtc reqeth rlcaud rlcbtc rlceth saltaud saltbtc salteth sntaud sntbtc snteth srnaud srnbtc srneth storjaud storjbtc storjeth stormaud stormbtc stormeth subaud subbtc subeth waxaud waxbtc waxeth wtcaud wtcbtc wtceth zilaud zilbtc zileth zrxaud zrxbtc zrxeth ctxcaud ctxcbtc ctxceth tnbaud tnbbtc tnbeth pvbaud pvbbtc pvbeth"
+    TARGET: "ali"

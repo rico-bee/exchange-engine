@@ -1,0 +1,6 @@
+kafka:
+  brokers:
+    - kafka:9092
+
+service:
+  trading: trade:8028

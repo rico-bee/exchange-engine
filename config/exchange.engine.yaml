@@ -1,0 +1,7 @@
+kafka:
+  brokers:
+    - 127.0.0.1:9092
+
+service:
+  trading: localhost:8028
+  failloader: localhost:8032
